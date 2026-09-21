@@ -4,16 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#12100e">
-<title>باشگاه مشتریان کافه پازیریک</title>
+<title>پنل مدیریت مادر - کافه پازیریک</title>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/vazirmatn@latest/400.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/vazirmatn@latest/700.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/css/vazirmatn@latest/900.css">
 
+<!-- Firebase SDK (ورژن 8 برای استفاده راحت در فایل استاتیک) -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
 <style>
 :root {
-  --bg: #110e0c;
-  --panel: rgba(255, 255, 255, 0.05);
+  --bg: #0f0d0b;
+  --panel: #161310;
   --line: rgba(218, 165, 32, 0.25);
   --gold: #daa520;
   --gold-light: #f5d77f;
@@ -22,376 +26,371 @@
   --red: #e63946;
   --green: #2a9d8f;
 }
-* { margin:0; padding:0; box-sizing:border-box; font-family:'Vazirmatn',sans-serif; }
+* { margin:0; padding:0; box-sizing:border-box; font-family:'Vazirmatn',sans-serif; -webkit-tap-highlight-color: transparent; }
 body { background:var(--bg); color:var(--text); min-height:100vh; padding:12px; }
-.app { max-width:900px; margin:0 auto; }
+.app { max-width:1000px; margin:0 auto; }
 
-header {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding-bottom:14px;
-  border-bottom:1px solid var(--line);
-  margin-bottom:16px;
-}
-h1 {
-  font-size:20px;
-  font-weight:900;
-  background:linear-gradient(135deg, var(--gold-light), var(--gold));
-  -webkit-background-clip:text;
-  background-clip:text;
-  color:transparent;
-}
+header { display:flex; justify-content:space-between; align-items:center; padding-bottom:12px; border-bottom:1px solid var(--line); margin-bottom:14px; }
+h1 { font-size:20px; font-weight:900; background:linear-gradient(135deg, var(--gold-light), var(--gold)); -webkit-background-clip:text; background-clip:text; color:transparent; }
 
-.stats-grid {
-  display:grid;
-  grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
-  gap:10px;
-  margin-bottom:16px;
-}
-.stat {
-  background:var(--panel);
-  border:1px solid var(--line);
-  border-radius:12px;
-  padding:12px;
-  text-align:center;
-}
-.stat .lb { font-size:11px; color:var(--muted); }
-.stat .vl { font-size:16px; font-weight:900; color:var(--gold-light); margin-top:4px; }
+.status-badge { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:bold; color:var(--green); background:rgba(42, 157, 143, 0.1); padding:6px 10px; border-radius:20px; border:1px solid rgba(42, 157, 143, 0.3); }
+.status-badge.offline { color:var(--red); background:rgba(230, 57, 70, 0.1); border-color:rgba(230, 57, 70, 0.3); }
+.dot { width:8px; height:8px; border-radius:50%; background:var(--green); animation: pulse 1.5s infinite; }
+.offline .dot { background:var(--red); animation:none; }
+@keyframes pulse { 0% { box-shadow:0 0 0 0 rgba(42, 157, 143, 0.7); } 70% { box-shadow:0 0 0 6px rgba(42, 157, 143, 0); } 100% { box-shadow:0 0 0 0 rgba(42, 157, 143, 0); } }
 
-.card {
-  background:var(--panel);
-  border:1px solid var(--line);
-  border-radius:14px;
-  padding:16px;
-  margin-bottom:16px;
-}
-.card-t { font-size:14px; font-weight:900; color:var(--gold-light); margin-bottom:12px; }
+.tabs { display:flex; gap:8px; margin-bottom:14px; overflow-x:auto; padding-bottom:4px; }
+.tab { padding:10px 14px; border-radius:10px; cursor:pointer; font-size:12px; font-weight:700; color:var(--muted); border:1px solid var(--line); background:var(--panel); white-space:nowrap; flex:1; text-align:center; transition:0.2s; }
+.tab.active { background:linear-gradient(135deg, var(--gold-light), var(--gold)); color:#110e0c; border-color:var(--gold); font-weight:900; }
 
-.form-grid {
-  display:grid;
-  grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
-  gap:10px;
-  margin-bottom:12px;
-}
-.form-group { display:flex; flex-direction:column; gap:4px; }
+.page { display:none; animation: fadeIn 0.3s ease; }
+.page.active { display:block; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+
+.card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+.card-t { font-size:14px; font-weight:900; color:var(--gold-light); margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; border-bottom: 1px dashed var(--line); padding-bottom: 10px; }
+
+.form-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-bottom:14px; }
+.form-group { display:flex; flex-direction:column; gap:6px; }
 label { font-size:11px; color:var(--muted); font-weight:700; }
-input, textarea {
-  background:#1c1714;
-  border:1px solid var(--line);
-  color:var(--text);
-  padding:9px 10px;
-  border-radius:8px;
-  font-size:12px;
-  width:100%;
-  outline:none;
-}
-input:focus, textarea:focus { border-color:var(--gold); }
-textarea { resize:vertical; min-height:40px; }
+input { background:#0f0d0b; border:1px solid var(--line); color:var(--text); padding:10px 12px; border-radius:8px; font-size:13px; width:100%; outline:none; transition:0.2s; }
+input:focus { border-color:var(--gold); box-shadow: 0 0 0 2px rgba(218, 165, 32, 0.2); }
 
-.btn-row { display:flex; gap:8px; flex-wrap:wrap; }
-.btn {
-  border:none;
-  padding:9px 14px;
-  border-radius:8px;
-  cursor:pointer;
-  font-size:11px;
-  font-weight:700;
-  background:linear-gradient(135deg, var(--gold-light), var(--gold));
-  color:#120e0c;
-  transition:opacity 0.2s;
-}
-.btn:hover { opacity:0.9; }
+.btn { border:none; padding:10px 16px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:700; background:linear-gradient(135deg, var(--gold-light), var(--gold)); color:#110e0c; transition:0.2s; }
+.btn:active { transform:scale(0.96); }
 .btn.red { background:linear-gradient(135deg, #ff6b6b, var(--red)); color:#fff; }
 .btn.green { background:linear-gradient(135deg, #48cae4, var(--green)); color:#051d1a; }
-.btn.ghost { background:rgba(255,255,255,0.06); color:var(--text); border:1px solid var(--line); }
-.btn.sm { padding:5px 8px; font-size:10px; }
+.btn.sm { padding:6px 10px; font-size:11px; }
 
-.tblwrap { overflow-x:auto; margin-top:10px; }
+.tblwrap { overflow-x:auto; }
 table { width:100%; border-collapse:collapse; font-size:12px; }
-th, td { padding:10px 8px; text-align:right; border-bottom:1px solid rgba(218, 165, 32, 0.12); }
-th { color:var(--muted); font-size:11px; font-weight:700; }
+th, td { padding:12px 10px; text-align:right; border-bottom:1px solid rgba(218, 165, 32, 0.1); }
+th { color:var(--muted); font-size:11px; font-weight:700; background: rgba(255,255,255,0.02); }
+tr:hover { background: rgba(255,255,255,0.01); }
 
-.actions-cell { display:flex; gap:6px; }
+.toggle-switch { position:relative; display:inline-block; width:44px; height:24px; }
+.toggle-switch input { opacity:0; width:0; height:0; }
+.slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#333; transition:.3s; border-radius:24px; border:1px solid var(--line); }
+.slider:before { position:absolute; content:""; height:16px; width:16px; left:3px; bottom:3px; background-color:var(--muted); transition:.3s; border-radius:50%; }
+input:checked + .slider { background-color:rgba(42, 157, 143, 0.3); border-color:var(--green); }
+input:checked + .slider:before { transform:translateX(20px); background-color:var(--green); }
 </style>
 </head>
 <body>
 <div class="app">
   <header>
     <div>
-      <h1>باشگاه مشتریان کافه پازیریک</h1>
-      <small style="color:var(--muted); font-size:11px;">سیستم اختصاصی مدیریت مشخصات، سفارشات و سوابق مشتریان</small>
+      <h1>پازیریک | پنل مدیریت مادر</h1>
+      <small style="color:var(--muted); font-size:11px;">سیستم متمرکز نظارت و انبارداری</small>
     </div>
-    <div id="curDate" style="font-size:11px; color:var(--muted);"></div>
+    <div id="connStatus" class="status-badge offline">
+      <div class="dot"></div> <span id="statusText">در حال اتصال...</span>
+    </div>
   </header>
 
-  <!-- آمار کلی -->
-  <div class="stats-grid">
-    <div class="stat"><div class="lb">تعداد کل مشتریان</div><div class="vl" id="totalMembers">۰</div></div>
-    <div class="stat"><div class="lb">مجموع سفارشات ثبت‌شده</div><div class="vl" id="totalOrdersSum">۰ تومان</div></div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('inventory', this)">📦 انبار قهوه</div>
+    <div class="tab" onclick="switchTab('visitors', this)">👨‍💼 ویزیتورها</div>
+    <div class="tab" onclick="switchTab('orders', this)">🛒 فاکتورهای فروش</div>
+    <div class="tab" onclick="switchTab('customers', this)">👥 مشتریان ثبت‌شده</div>
   </div>
 
-  <!-- فرم ثبت و ویرایش مشتری -->
-  <div class="card">
-    <div class="card-t" id="formHeader">➕ ثبت مشتری جدید</div>
-    <input type="hidden" id="editIndex" value="-1">
-
-    <div class="form-grid">
-      <div class="form-group">
-        <label>نام و نام خانوادگی:</label>
-        <input id="mName" placeholder="مثال: علی رضایی" />
+  <!-- بخش انبار قهوه -->
+  <div class="page active" id="inventory">
+    <div class="card">
+      <div class="card-t">➕ تعریف موجودی جدید در انبار</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>نام و مشخصات دان قهوه:</label>
+          <input id="invName" placeholder="مثال: عربیکا کلمبیا رست مدیوم" />
+        </div>
+        <div class="form-group">
+          <label>موجودی (کیلوگرم):</label>
+          <input type="number" id="invStock" placeholder="مثال: 50" />
+        </div>
+        <div class="form-group">
+          <label>قیمت فروش هر کیلو (ریال):</label>
+          <!-- با قابلیت جداسازی ۳ رقم ۳ رقم در هنگام تایپ -->
+          <input type="text" id="invPrice" placeholder="مثال: 4,500,000" oninput="formatMoneyInput(this)" />
+        </div>
       </div>
-      <div class="form-group">
-        <label>کد مشتری:</label>
-        <input id="mCode" placeholder="مثال: PZ-101" />
-      </div>
-      <div class="form-group">
-        <label>شماره تماس:</label>
-        <input id="mPhone" placeholder="مثال: 09123456789" />
-      </div>
-      <div class="form-group">
-        <label>مقدار سفارش (تومان):</label>
-        <input type="number" id="mOrderValue" placeholder="مثال: 450000" />
-      </div>
+      <button class="btn green" onclick="addInventoryItem()">💾 ثبت در انبار مرکزی</button>
     </div>
 
-    <div class="form-group" style="margin-bottom:12px;">
-      <label>آدرس:</label>
-      <textarea id="mAddress" rows="2" placeholder="آدرس یا میز ثابت مشتری..."></textarea>
-    </div>
-
-    <div class="btn-row">
-      <button class="btn green" id="saveBtn" onclick="saveCustomer()">💾 ثبت اطلاعات مشتری</button>
-      <button class="btn ghost" id="cancelEditBtn" style="display:none;" onclick="resetForm()">انصراف از ویرایش</button>
-    </div>
-  </div>
-
-  <!-- لیست و جستجو -->
-  <div class="card">
-    <div class="card-t">📋 فهرست اعضای باشگاه مشتریان</div>
-    <input id="searchInput" placeholder="🔍 جستجو بر اساس نام، کد مشتری یا شماره تماس..." oninput="renderTable()" style="margin-bottom:10px;">
-
-    <div class="tblwrap">
-      <table>
-        <thead>
-          <tr>
-            <th>کد</th>
-            <th>نام و نام خانوادگی</th>
-            <th>شماره تماس</th>
-            <th>مقدار سفارش</th>
-            <th>آدرس</th>
-            <th>عملیات</th>
-          </tr>
-        </thead>
-        <tbody id="customersTbl"></tbody>
-      </table>
+    <div class="card">
+      <div class="card-t">📋 موجودی لحظه‌ای انبار</div>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>نام قهوه</th><th>موجودی (کیلوگرم)</th><th>قیمت هر کیلو (ریال)</th><th>عملیات</th></tr></thead>
+          <tbody id="invTbl"><tr><td colspan="4" style="text-align:center;">در حال دریافت اطلاعات...</td></tr></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
-  <!-- مدیریت پشتیبان‌گیری مو به مو و خوانا -->
-  <div class="card">
-    <div class="card-t">💾 پشتیبان‌گیری و بازیابی دقیق حافظه</div>
-    <p style="font-size:12px; color:var(--muted); line-height:20px; margin-bottom:12px;">
-      با زدن دکمه زیر یک فایل متنی استاندارد و خوانا شامل تمامی اطلاعات مشتریان و مبالغ در گوشی شما ذخیره می‌شود تا هر زمان مایل بودید بدون هیچ نقصی بازیابی شود.
-    </p>
-    <div class="btn-row">
-      <button class="btn" onclick="exportBackup()">📥 دانلود فایل پشتیبان خوانا (JSON)</button>
-      <button class="btn ghost" onclick="document.getElementById('importFile').click()">📤 بازیابی فایل پشتیبان</button>
-      <input type="file" id="importFile" style="display:none;" accept=".json" onchange="importBackup(event)">
+  <!-- بخش ویزیتورها -->
+  <div class="page" id="visitors">
+    <div class="card">
+      <div class="card-t">➕ صدور کد جدید برای ویزیتور</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>نام ویزیتور / نماینده:</label>
+          <input id="visName" placeholder="مثال: علی رضایی" />
+        </div>
+        <div class="form-group">
+          <label>کد اختصاصی ورود (لاتین و عدد):</label>
+          <input id="visCode" placeholder="مثال: VIS-01" dir="ltr" style="text-align:left;" />
+        </div>
+      </div>
+      <button class="btn" onclick="addVisitor()">🔑 ایجاد دسترسی</button>
+    </div>
+
+    <div class="card">
+      <div class="card-t">
+        🛡️ مدیریت دسترسی ویزیتورها
+        <small style="font-size:10px; color:var(--muted); font-weight:normal;">با خاموش کردن تیک، برنامه ویزیتور فورا قفل می‌شود</small>
+      </div>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>کد ویزیتور</th><th>نام نماینده</th><th>وضعیت دسترسی (فعال/مسدود)</th><th>عملیات</th></tr></thead>
+          <tbody id="visTbl"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- بخش فاکتورها -->
+  <div class="page" id="orders">
+    <div class="card">
+      <div class="card-t">🛒 فاکتورهای ثبت شده زنده</div>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>شماره فاکتور</th><th>کد ویزیتور</th><th>مشتری</th><th>اقلام سفارش (کیلو)</th><th>مبلغ کل (ریال)</th><th>تاریخ و زمان</th></tr></thead>
+          <tbody id="ordersTbl"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- بخش مشتریان -->
+  <div class="page" id="customers">
+    <div class="card">
+      <div class="card-t">👥 بانک اطلاعاتی مشتریان (ثبت شده توسط ویزیتورها)</div>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>نام کافه / مشتری</th><th>شماره تماس</th><th>آدرس</th><th>ویزیتور معرف</th></tr></thead>
+          <tbody id="customersTbl"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-const STORAGE_KEY = 'pazyryk_crm_customers';
+// --- پیکربندی دیتابیس فایربیس ---
+const firebaseConfig = {
+  apiKey: "AIzaSyCIadOD9NlTlFxenyVM7vvX3Tlgguq1cCU",
+  authDomain: "pazyryk-club.firebaseapp.com",
+  databaseURL: "https://pazyryk-club-default-rtdb.firebaseio.com",
+  projectId: "pazyryk-club",
+  storageBucket: "pazyryk-club.firebasestorage.app",
+  messagingSenderId: "587418949826",
+  appId: "1:587418949826:web:82ba88279adddd467fc35b",
+  measurementId: "G-XCCG2HMNF0"
+};
 
-// دریافت دیتابیس بدون ریسک تغییر نام کلید
-let customers = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [
-  {
-    code: "PZ-101",
-    name: "یاسین سنجری",
-    phone: "09120000000",
-    address: "کافه پازیریک - میز اختصاصی",
-    orderValue: 850000,
-    regDate: new Date().toLocaleDateString('fa-IR')
+// راه‌اندازی فایربیس
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// وضعیت اتصال زنده
+const connRef = firebase.database().ref(".info/connected");
+connRef.on("value", (snap) => {
+  const badge = document.getElementById('connStatus');
+  const txt = document.getElementById('statusText');
+  if (snap.val() === true) {
+    badge.className = "status-badge";
+    txt.innerText = "متصل به سرور (آنلاین)";
+  } else {
+    badge.className = "status-badge offline";
+    txt.innerText = "قطع ارتباط (آفلاین)";
   }
-];
+});
 
-function saveToStorage() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(customers));
-  updateStats();
-}
-
+// توابع کمکی
 const fa = n => String(n).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
-const money = n => fa(Number(n || 0).toLocaleString('en-US')) + ' تومان';
+const formatMoney = num => fa(Number(num).toLocaleString('en-US')) + ' ریال';
 
-function updateStats() {
-  document.getElementById('totalMembers').innerText = fa(customers.length);
-  const totalSum = customers.reduce((sum, c) => sum + Number(c.orderValue || 0), 0);
-  document.getElementById('totalOrdersSum').innerText = money(totalSum);
+// تابع جداسازی 3 رقم هنگام تایپ
+function formatMoneyInput(el) {
+  let val = el.value.replace(/,/g, '').replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)); // حذف کاما و تبدیل فارسی به انگلیسی
+  if (!isNaN(val) && val !== '') {
+    el.value = Number(val).toLocaleString('en-US');
+  } else {
+    el.value = '';
+  }
 }
 
-function renderTable() {
-  const q = document.getElementById('searchInput').value.trim().toLowerCase();
-  const tb = document.getElementById('customersTbl');
+// جابجایی تب‌ها
+function switchTab(tabId, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
 
-  const filtered = customers.filter(c => 
-    (c.name && c.name.toLowerCase().includes(q)) ||
-    (c.code && c.code.toLowerCase().includes(q)) ||
-    (c.phone && c.phone.includes(q)) ||
-    (c.address && c.address.toLowerCase().includes(q))
-  );
+// ================= 1. انبار قهوه =================
+function addInventoryItem() {
+  const name = document.getElementById('invName').value.trim();
+  const stock = Number(document.getElementById('invStock').value);
+  // تبدیل مقدار دارای کاما به عدد خالص
+  const priceRaw = document.getElementById('invPrice').value.replace(/,/g, '');
+  const price = Number(priceRaw);
 
-  if (filtered.length === 0) {
-    tb.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:16px;">موردی یافت نشد.</td></tr>`;
+  if (!name || stock <= 0 || price <= 0) {
+    alert("لطفاً مشخصات، کیلوگرم و قیمت ریالی را به درستی وارد کنید.");
     return;
   }
 
-  tb.innerHTML = filtered.map((c, idx) => {
-    const origIdx = customers.findIndex(x => x.code === c.code && x.phone === c.phone);
-    return `
+  const id = 'COF_' + Date.now();
+  db.ref('inventory/' + id).set({
+    id: id,
+    name: name,
+    stockKg: stock,
+    priceRial: price
+  }).then(() => {
+    document.getElementById('invName').value = '';
+    document.getElementById('invStock').value = '';
+    document.getElementById('invPrice').value = '';
+  }).catch(e => alert("خطا در ثبت: " + e.message));
+}
+
+// خواندن زنده انبار
+db.ref('inventory').on('value', snap => {
+  const data = snap.val();
+  const tb = document.getElementById('invTbl');
+  if (!data) {
+    tb.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--muted);">انبار خالی است. قهوه جدید تعریف کنید.</td></tr>';
+    return;
+  }
+  let html = '';
+  Object.keys(data).forEach(key => {
+    const item = data[key];
+    html += `
       <tr>
-        <td><b style="color:var(--gold);">${c.code}</b></td>
-        <td><b>${c.name}</b></td>
-        <td dir="ltr" style="text-align:right;">${fa(c.phone || '-')}</td>
-        <td style="color:var(--gold-light); font-weight:bold;">${money(c.orderValue)}</td>
-        <td style="max-width:180px; font-size:11px; color:var(--muted);">${c.address || '-'}</td>
-        <td>
-          <div class="actions-cell">
-            <button class="btn sm" onclick="editCustomer(${origIdx})">✏️ ویرایش</button>
-            <button class="btn sm red" onclick="deleteCustomer(${origIdx})">🗑️</button>
-          </div>
-        </td>
+        <td><b>${item.name}</b></td>
+        <td style="color:var(--gold-light); font-weight:bold; font-size:14px;">${fa(item.stockKg)} <small style="font-weight:normal; color:var(--muted); font-size:10px;">کیلوگرم</small></td>
+        <td>${formatMoney(item.priceRial)}</td>
+        <td><button class="btn sm red" onclick="deleteInv('${key}')">حذف</button></td>
       </tr>
     `;
-  }).join('');
-}
+  });
+  tb.innerHTML = html;
+});
 
-function saveCustomer() {
-  const name = document.getElementById('mName').value.trim();
-  let code = document.getElementById('mCode').value.trim();
-  const phone = document.getElementById('mPhone').value.trim();
-  const orderValue = Number(document.getElementById('mOrderValue').value || 0);
-  const address = document.getElementById('mAddress').value.trim();
-  const editIdx = Number(document.getElementById('editIndex').value);
-
-  if (!name) {
-    alert("لطفاً نام و نام خانوادگی مشتری را وارد کنید.");
-    return;
-  }
-
-  if (!code) {
-    code = "PZ-" + (100 + customers.length + 1);
-  }
-
-  const customerData = {
-    code,
-    name,
-    phone: phone || "ثبت نشده",
-    orderValue,
-    address: address || "ثبت نشده",
-    updatedAt: new Date().toLocaleDateString('fa-IR')
-  };
-
-  if (editIdx >= 0) {
-    customers[editIdx] = customerData;
-    alert("مشخصات مشتری با موفقیت به‌روزرسانی شد.");
-  } else {
-    customers.push(customerData);
-    alert("مشتری جدید با موفقیت به باشگاه اضافه شد.");
-  }
-
-  saveToStorage();
-  resetForm();
-  renderTable();
-}
-
-function editCustomer(idx) {
-  const c = customers[idx];
-  document.getElementById('editIndex').value = idx;
-  document.getElementById('mName').value = c.name;
-  document.getElementById('mCode').value = c.code;
-  document.getElementById('mPhone').value = c.phone === "ثبت نشده" ? "" : c.phone;
-  document.getElementById('mOrderValue').value = c.orderValue || 0;
-  document.getElementById('mAddress').value = c.address === "ثبت نشده" ? "" : c.address;
-
-  document.getElementById('formHeader').innerText = `✏️ ویرایش مشخصات: ${c.name}`;
-  document.getElementById('saveBtn').innerText = "بروزرسانی اطلاعات مشتری";
-  document.getElementById('cancelEditBtn').style.display = "inline-block";
-
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function resetForm() {
-  document.getElementById('editIndex').value = "-1";
-  document.getElementById('mName').value = "";
-  document.getElementById('mCode').value = "";
-  document.getElementById('mPhone').value = "";
-  document.getElementById('mOrderValue').value = "";
-  document.getElementById('mAddress').value = "";
-
-  document.getElementById('formHeader').innerText = "➕ ثبت مشتری جدید";
-  document.getElementById('saveBtn').innerText = "💾 ثبت اطلاعات مشتری";
-  document.getElementById('cancelEditBtn').style.display = "none";
-}
-
-function deleteCustomer(idx) {
-  if (confirm(`آیا از حذف «${customers[idx].name}» اطمینان دارید؟`)) {
-    customers.splice(idx, 1);
-    saveToStorage();
-    renderTable();
+function deleteInv(id) {
+  if (confirm("آیا از حذف این قهوه از انبار اطمینان دارید؟")) {
+    db.ref('inventory/' + id).remove();
   }
 }
 
-// پشتیبان‌گیری کاملاً خوانا (Human-readable با فاصله‌گذاری ۲ اسپیس)
-function exportBackup() {
-  const backupPayload = {
-    systemName: "باشگاه مشتریان کافه پازیریک",
-    exportDate: new Date().toISOString(),
-    exportDateFa: new Date().toLocaleDateString('fa-IR'),
-    totalCustomers: customers.length,
-    customersList: customers
-  };
+// ================= 2. ویزیتورها =================
+function addVisitor() {
+  const name = document.getElementById('visName').value.trim();
+  const code = document.getElementById('visCode').value.trim().toUpperCase();
 
-  const jsonStr = JSON.stringify(backupPayload, null, 2);
-  const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `pazyryk_customers_backup_${new Date().toISOString().split('T')[0]}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  if (!name || !code) { alert("نام و کد را وارد کنید."); return; }
+
+  db.ref('visitors/' + code).set({
+    code: code,
+    name: name,
+    active: true // به صورت پیش فرض دسترسی باز است
+  }).then(() => {
+    document.getElementById('visName').value = '';
+    document.getElementById('visCode').value = '';
+  });
 }
 
-// بازیابی مو به مو
-function importBackup(e) {
-  const file = e.target.files[0];
-  if (!file) return;
+db.ref('visitors').on('value', snap => {
+  const data = snap.val();
+  const tb = document.getElementById('visTbl');
+  if (!data) { tb.innerHTML = '<tr><td colspan="4" style="text-align:center;">ویزیتوری ثبت نشده است.</td></tr>'; return; }
+  let html = '';
+  Object.keys(data).forEach(key => {
+    const vis = data[key];
+    html += `
+      <tr>
+        <td dir="ltr" style="text-align:right;"><b style="color:var(--gold);">${vis.code}</b></td>
+        <td>${vis.name}</td>
+        <td>
+          <label class="toggle-switch">
+            <input type="checkbox" ${vis.active ? 'checked' : ''} onchange="toggleVisitor('${vis.code}', this.checked)">
+            <span class="slider"></span>
+          </label>
+          <span style="font-size:10px; margin-right:8px; color:${vis.active ? 'var(--green)' : 'var(--red)'}">${vis.active ? 'فعال' : 'مسدود'}</span>
+        </td>
+        <td><button class="btn sm red" onclick="deleteVis('${vis.code}')">حذف</button></td>
+      </tr>
+    `;
+  });
+  tb.innerHTML = html;
+});
 
-  const reader = new FileReader();
-  reader.onload = function(evt) {
-    try {
-      const parsed = JSON.parse(evt.target.result);
-      const list = parsed.customersList || (Array.isArray(parsed) ? parsed : null);
-
-      if (list && Array.isArray(list)) {
-        customers = list;
-        saveToStorage();
-        renderTable();
-        alert(`اطلاعات ${customers.length} مشتری با موفقیت بازیابی شد.`);
-      } else {
-        alert("فرمت فایل نامعتبر است.");
-      }
-    } catch (err) {
-      alert("خطا در بازخوانی فایل پشتیبان.");
-    }
-  };
-  reader.readAsText(file);
+function toggleVisitor(code, isActive) {
+  // تغییر لحظه ای وضعیت دسترسی در دیتابیس
+  db.ref('visitors/' + code).update({ active: isActive });
 }
 
-document.getElementById('curDate').innerText = new Date().toLocaleDateString('fa-IR');
-updateStats();
-renderTable();
+function deleteVis(code) {
+  if(confirm("حذف کامل این ویزیتور؟")) db.ref('visitors/' + code).remove();
+}
+
+// ================= 3. فاکتورهای فروش =================
+db.ref('orders').on('value', snap => {
+  const data = snap.val();
+  const tb = document.getElementById('ordersTbl');
+  if (!data) { tb.innerHTML = '<tr><td colspan="6" style="text-align:center;">هنوز سفارشی ثبت نشده است.</td></tr>'; return; }
+  
+  // مرتب سازی فاکتورها از جدید به قدیم
+  const orders = Object.values(data).sort((a,b) => b.timestamp - a.timestamp);
+  
+  let html = '';
+  orders.forEach(ord => {
+    let itemsTxt = ord.items.map(i => `${i.name} (${fa(i.qty)} کیلو)`).join('<br>');
+    html += `
+      <tr>
+        <td><b>#${ord.orderId}</b></td>
+        <td dir="ltr" style="text-align:right;"><span style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px; font-size:10px;">${ord.visitorCode}</span></td>
+        <td>${ord.customerName}</td>
+        <td style="font-size:11px; line-height:18px;">${itemsTxt}</td>
+        <td style="color:var(--gold-light); font-weight:bold;">${formatMoney(ord.totalRial)}</td>
+        <td style="font-size:10px; color:var(--muted);">${ord.date}</td>
+      </tr>
+    `;
+  });
+  tb.innerHTML = html;
+});
+
+// ================= 4. مشتریان ثبت شده =================
+db.ref('customers').on('value', snap => {
+  const data = snap.val();
+  const tb = document.getElementById('customersTbl');
+  if (!data) { tb.innerHTML = '<tr><td colspan="4" style="text-align:center;">هنوز مشتری ثبت نشده است.</td></tr>'; return; }
+  
+  let html = '';
+  Object.keys(data).forEach(phone => {
+    const cust = data[phone];
+    html += `
+      <tr>
+        <td><b>${cust.name}</b></td>
+        <td dir="ltr" style="text-align:right;">${fa(cust.phone)}</td>
+        <td style="font-size:11px; color:var(--muted);">${cust.address || '-'}</td>
+        <td style="font-size:10px;">${cust.registeredBy}</td>
+      </tr>
+    `;
+  });
+  tb.innerHTML = html;
+});
 </script>
 </body>
 </html>
